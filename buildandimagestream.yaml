@@ -73,5 +73,5 @@ parameters:
   displayName: Number of instances
   description: The number of service instance (i.e. replicas).
   value: '1'
-  required: https://github.com/sclorg/cakephp-ex
+  required: true
    
