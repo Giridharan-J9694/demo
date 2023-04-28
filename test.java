@@ -1,55 +1,81 @@
-import java.io.*;
-import java.util.List;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 
-import org.apache.pdfbox.pdmodel.*;
-import org.apache.pdfbox.text.*;
-import org.apache.poi.xwpf.usermodel.*;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.rendering.PDFRenderer;
+import org.apache.pdfbox.text.PDFTextStripper;
+import org.apache.pdfbox.text.TextPosition;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.font.PDFont;
+import org.apache.pdfbox.pdmodel.font.PDType0Font;
+import org.apache.pdfbox.pdmodel.font.PDType1CFont;
+import org.apache.pdfbox.pdmodel.font.PDType1Font;
+import org.apache.pdfbox.pdmodel.font.PDTrueTypeFont;
+import org.apache.pdfbox.pdmodel.font.PDType3Font;
+import org.apache.pdfbox.pdmodel.font.encoding.Encoding;
+import org.apache.pdfbox.pdmodel.font.encoding.WinAnsiEncoding;
+import org.apache.pdfbox.cos.COSName;
+import org.apache.pdfbox.pdmodel.PDResources;
+import org.apache.pdfbox.pdmodel.font.PDFontDescriptor;
+
+import org.apache.poi.xwpf.usermodel.XWPFDocument;
+import org.apache.poi.xwpf.usermodel.XWPFParagraph;
+import org.apache.poi.xwpf.usermodel.XWPFRun;
 
 public class PdfToWordConverter {
-    public static void main(String[] args) throws Exception {
-        // Load the PDF file into a PDDocument object
-        PDDocument document = PDDocument.load(new File("example.pdf"));
+    public static void main(String[] args) throws IOException {
+        String pdfFilePath = "input.pdf";
+        String docxFilePath = "output.docx";
 
-        // Create a new Word document
-        XWPFDocument docx = new XWPFDocument();
+        try (PDDocument pdf = PDDocument.load(new File(pdfFilePath))) {
+            XWPFDocument docx = new XWPFDocument();
+            for (PDPage page : pdf.getPages()) {
+                String text = getText(page);
+                XWPFParagraph paragraph = docx.createParagraph();
+                XWPFRun run = paragraph.createRun();
+                run.setText(text);
+            }
+            FileOutputStream out = new FileOutputStream(docxFilePath);
+            docx.write(out);
+            out.close();
+        }
+    }
 
-        // Create a PDFTextStripper object and set the start and end page numbers
-        PDFTextStripper stripper = new PDFTextStripper();
-        stripper.setStartPage(1);
-        stripper.setEndPage(document.getNumberOfPages());
+    private static String getText(PDPage page) throws IOException {
+        StringBuilder sb = new StringBuilder();
+        PDResources resources = page.getResources();
+        Iterable<COSName> fontNames = resources.getFontNames();
 
-        // Get the text content of the PDF document
-        String text = stripper.getText(document);
-
-        // Create a list of paragraphs based on the PDF text content
-        List<String> paragraphs = List.of(text.split("\\r?\\n\\r?\\n"));
-
-        // Iterate through each paragraph and add it to the Word document
-        for (String paragraphText : paragraphs) {
-            // Create a new paragraph in the Word document and add the paragraph text to it
-            XWPFParagraph paragraph = docx.createParagraph();
-            XWPFRun run = paragraph.createRun();
-            run.setText(paragraphText);
-
-            // Set the font style of the paragraph based on the PDF text style
-            List<TextPosition> textPositions = stripper.getCharactersByArticle();
-            if (textPositions != null && textPositions.size() > 0) {
-                TextPosition firstChar = textPositions.get(0);
-                run.setFontFamily(firstChar.getFont().getName());
-                run.setFontSize((int) firstChar.getFontSizeInPt());
-                run.setBold(firstChar.getFont().isBold());
-                run.setItalic(firstChar.getFont().isItalic());
+        for (COSName fontName : fontNames) {
+            PDFont font = resources.getFont(fontName);
+            if (font == null) {
+                continue;
+            }
+            FontDescriptor fontDescriptor = font.getFontDescriptor();
+            if (fontDescriptor == null) {
+                continue;
+            }
+            float fontSize = fontDescriptor.getFontBoundingBox().getHeight() / 1000;
+            for (TextPosition text : new PDFTextStripper().getTextPositions(page)) {
+                if (font.equals(text.getFont())) {
+                    String unicode = text.getUnicode();
+                    sb.append(unicode);
+                    if (fontDescriptor.isBold() && !unicode.contains("<b>")) {
+                        sb.append("<b>");
+                    }
+                    if (fontDescriptor.isItalic() && !unicode.contains("<i>")) {
+                        sb.append("<i>");
+                    }
+                    if ((!fontDescriptor.isBold()) && unicode.contains("<b>")) {
+                        sb.append("</b>");
+                    }
+                    if ((!fontDescriptor.isItalic()) && unicode.contains("<i>")) {
+                        sb.append("</i>");
+                    }
+                }
             }
         }
-
-        // Save the Word document
-        FileOutputStream out = new FileOutputStream("example.docx");
-        docx.write(out);
-        out.close();
-
-        // Close the PDF document
-        document.close();
-
-        System.out.println("PDF converted to Word successfully.");
+        return sb.toString();
     }
 }
