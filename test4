@@ -158,3 +158,47 @@ public class ParagraphInfo {
         return characters;
     }
 }
+
+private static class ParagraphInfo {
+    private String text;
+    private List<TextPosition> article;
+
+    public ParagraphInfo(String text, List<TextPosition> article) {
+        this.text = text;
+        this.article = article;
+    }
+
+    public String getText() {
+        return text;
+    }
+
+    public List<TextPosition> getArticle() {
+        return article;
+    }
+
+    public PDFont getFont() {
+        return article.get(0).getFont();
+    }
+
+    public float getFontSize() {
+        return article.get(0).getFontSize();
+    }
+
+    public boolean isBold() throws IOException {
+        PDFontDescriptor fontDescriptor = getFont().getFontDescriptor();
+        if (fontDescriptor != null) {
+            PDFontDescriptorDictionary fd = fontDescriptor.getFontDescriptor();
+            return fd != null && fd.isForceBold();
+        }
+        return false;
+    }
+
+    public boolean isItalic() throws IOException {
+        PDFontDescriptor fontDescriptor = getFont().getFontDescriptor();
+        if (fontDescriptor != null) {
+            PDFontDescriptorDictionary fd = fontDescriptor.getFontDescriptor();
+            return fd != null && fd.isItalic();
+        }
+        return false;
+    }
+}
