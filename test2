@@ -1,0 +1,51 @@
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
+
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.text.PDFTextStripper;
+import org.apache.pdfbox.text.TextPosition;
+
+public class PDFToWordConverter {
+
+    public static void main(String[] args) throws IOException {
+        File pdfFile = new File("input.pdf");
+        PDDocument pdfDoc = PDDocument.load(pdfFile);
+
+        File outputWordFile = new File("output.docx");
+        Writer writer = new OutputStreamWriter(new FileOutputStream(outputWordFile), "UTF-8");
+
+        for (int i = 0; i < pdfDoc.getNumberOfPages(); i++) {
+            PDPage page = pdfDoc.getPage(i);
+
+            PDFTextStripper stripper = new PDFTextStripper() {
+                @Override
+                protected void writeString(String text, List<TextPosition> textPositions) throws IOException {
+                    boolean hasAcrobatFields = false;
+                    for (TextPosition textPosition : textPositions) {
+                        if (textPosition.getUnicode().equals("") || textPosition.getUnicode().equals("")) {
+                            hasAcrobatFields = true;
+                            break;
+                        }
+                    }
+
+                    if (hasAcrobatFields) {
+                        super.writeString(text, textPositions);
+                    }
+                }
+            };
+            stripper.setStartPage(i + 1);
+            stripper.setEndPage(i + 1);
+            String pageText = stripper.getText(pdfDoc);
+
+            writer.write(pageText);
+        }
+
+        writer.close();
+        pdfDoc.close();
+    }
+}
