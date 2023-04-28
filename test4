@@ -78,6 +78,15 @@ public class PdfToWordConverter {
             return paragraphs;
         }
     }
+    
+    private List<TextPosition> getArticle() {
+    List<TextPosition> article = new ArrayList<>();
+    for (int i = 0; i < getCharactersByArticle().size(); i++) {
+        article.addAll(getCharactersByArticle().get(i));
+    }
+    return article;
+}
+
 
     private static class ParagraphInfo {
         private String text;
