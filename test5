@@ -11,3 +11,11 @@ fields @timestamp, @message
 | sort @timestamp asc
 | fields concat(@message, ' ') as message, requestId
 
+
+fields @timestamp, @message
+| filter ispresent(requestId)
+| stats count(), list(@message) as messages by requestId
+| sort @timestamp asc
+| fields concat(messages, ' ') as message, requestId
+
+
