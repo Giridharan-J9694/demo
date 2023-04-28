@@ -1,4 +1,6 @@
 import java.io.*;
+import java.util.List;
+
 import org.apache.pdfbox.pdmodel.*;
 import org.apache.pdfbox.text.*;
 import org.apache.poi.xwpf.usermodel.*;
@@ -11,35 +13,32 @@ public class PdfToWordConverter {
         // Create a new Word document
         XWPFDocument docx = new XWPFDocument();
 
-        // Iterate through each page of the PDF document
-        int numPages = document.getNumberOfPages();
-        for (int i = 0; i < numPages; i++) {
-            // Get the content of the current page as text using PDFTextStripper
-            PDFTextStripper stripper = new PDFTextStripper();
-            stripper.setStartPage(i + 1);
-            stripper.setEndPage(i + 1);
-            String pageContent = stripper.getText(document);
+        // Create a PDFTextStripper object and set the start and end page numbers
+        PDFTextStripper stripper = new PDFTextStripper();
+        stripper.setStartPage(1);
+        stripper.setEndPage(document.getNumberOfPages());
 
-            // Create a new paragraph in the Word document and add the page content to it
+        // Get the text content of the PDF document
+        String text = stripper.getText(document);
+
+        // Create a list of paragraphs based on the PDF text content
+        List<String> paragraphs = List.of(text.split("\\r?\\n\\r?\\n"));
+
+        // Iterate through each paragraph and add it to the Word document
+        for (String paragraphText : paragraphs) {
+            // Create a new paragraph in the Word document and add the paragraph text to it
             XWPFParagraph paragraph = docx.createParagraph();
             XWPFRun run = paragraph.createRun();
-            run.setText(pageContent);
+            run.setText(paragraphText);
 
-            // Copy the font style of each character from the PDF to the Word document
-            PDPage page = document.getPage(i);
-            PDResources resources = page.getResources();
-            for (COSName fontName : resources.getFontNames()) {
-                PDFont font = resources.getFont(fontName);
-                String fontFamily = font.getName();
-                int fontSize = font.getFontDescriptor().getFontSize();
-                for (TextPosition tp : stripper.getTextForPage(page).getCharacterList()) {
-                    if (font.getName().equals(tp.getFont().getName())) {
-                        run.setFontSize(tp.getFontSize());
-                        run.setFontFamily(tp.getFont().getName());
-                        run.setBold(tp.getFont().isBold());
-                        run.setItalic(tp.getFont().isItalic());
-                    }
-                }
+            // Set the font style of the paragraph based on the PDF text style
+            List<TextPosition> textPositions = stripper.getCharactersByArticle();
+            if (textPositions != null && textPositions.size() > 0) {
+                TextPosition firstChar = textPositions.get(0);
+                run.setFontFamily(firstChar.getFont().getName());
+                run.setFontSize((int) firstChar.getFontSizeInPt());
+                run.setBold(firstChar.getFont().isBold());
+                run.setItalic(firstChar.getFont().isItalic());
             }
         }
 
