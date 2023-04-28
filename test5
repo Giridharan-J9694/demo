@@ -24,3 +24,10 @@ fields @timestamp, @message
 | stats count(), join(@message, ' ') as message by requestId
 | sort @timestamp asc
 | fields message, requestId
+
+
+fields requestId, concat(@message, ' ') as message
+| filter ispresent(requestId)
+| stats count() by requestId
+| sort @timestamp asc
+| fields requestId, message
