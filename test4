@@ -1,0 +1,105 @@
+import java.io.*;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.apache.pdfbox.pdmodel.*;
+import org.apache.pdfbox.text.*;
+import org.apache.poi.xwpf.usermodel.*;
+
+public class PdfToWordConverter {
+    public static void main(String[] args) throws Exception {
+        // Load the PDF file into a PDDocument object
+        PDDocument document = PDDocument.load(new File("example.pdf"));
+
+        // Create a new Word document
+        XWPFDocument docx = new XWPFDocument();
+
+        // Iterate through each page in the PDF document
+        List<PDPage> pages = document.getDocumentCatalog().getPages();
+        for (PDPage page : pages) {
+            // Create a custom PDFTextStripper object to collect text and style information
+            PDFTextStripper stripper = new CustomPDFTextStripper();
+
+            // Set the start and end character positions for the page
+            stripper.setStartPage(document.getPageNumber(page));
+            stripper.setEndPage(document.getPageNumber(page));
+
+            // Get the text content of the PDF page
+            stripper.getText(document);
+
+            // Get the list of paragraphs with text and style information from the custom PDFTextStripper
+            List<ParagraphInfo> paragraphs = ((CustomPDFTextStripper) stripper).getParagraphs();
+
+            // Create a new XWPFParagraph for each paragraph in the Word document
+            for (ParagraphInfo paragraphInfo : paragraphs) {
+                XWPFParagraph paragraph = docx.createParagraph();
+
+                // Set the font style of the paragraph based on the PDF text style
+                TextPosition firstChar = paragraphInfo.getFirstChar();
+                XWPFRun run = paragraph.createRun();
+                run.setFontFamily(firstChar.getFont().getName());
+                run.setFontSize((int) firstChar.getFontSizeInPt());
+                run.setBold(firstChar.getFont().isBold());
+                run.setItalic(firstChar.getFont().isItalic());
+
+                // Add the paragraph text to the XWPFParagraph
+                run.setText(paragraphInfo.getText());
+            }
+        }
+
+        // Save the Word document
+        FileOutputStream out = new FileOutputStream("example.docx");
+        docx.write(out);
+        out.close();
+
+        // Close the PDF document
+        document.close();
+
+        System.out.println("PDF converted to Word successfully.");
+    }
+
+    private static class CustomPDFTextStripper extends PDFTextStripper {
+        private List<ParagraphInfo> paragraphs = new ArrayList<>();
+        private StringBuilder lineBuilder = new StringBuilder();
+        private TextPosition lastTextPosition = null;
+
+        @Override
+        protected void processTextPosition(TextPosition text) {
+            // If the current text position is not on the same line as the previous text position,
+            // create a new ParagraphInfo object and add it to the list of paragraphs
+            if (lastTextPosition != null && text.getYDirAdj() != lastTextPosition.getYDirAdj()) {
+                paragraphs.add(new ParagraphInfo(lineBuilder.toString(), getArticle()));
+                lineBuilder = new StringBuilder();
+            }
+
+            // Append the current text to the line buffer
+            lineBuilder.append(text.getUnicode());
+
+            // Update the last text position
+            lastTextPosition = text;
+        }
+
+        public List<ParagraphInfo> getParagraphs() {
+            return paragraphs;
+        }
+    }
+
+    private static class ParagraphInfo {
+        private String text;
+        private List<TextPosition> article;
+
+        public ParagraphInfo(String text, List<TextPosition> article) {
+            this.text = text;
+            this.article = article;
+        }
+
+        public String getText() {
+            return text;
+        }
+
+        public List<TextPosition> getArticle() {
+            return article;
+        }
+
+        public TextPosition getFirstChar() {
+            return article.get(0
