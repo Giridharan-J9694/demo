@@ -1,0 +1,5 @@
+fields @timestamp, @message
+| filter @logStream = 'your-log-stream-name'
+| stats count() by requestId
+| sort @timestamp asc
+| fields concat(@message, ' ') as message, requestId
