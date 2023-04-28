@@ -37,7 +37,7 @@ public class PdfToWordConverter {
             // Set the font style of the paragraph based on the PDF text style
             TextPosition firstChar = paragraphInfo.getFirstChar();
             run.setFontFamily(firstChar.getFont().getName());
-            run.setFontSize((int) firstChar.getFontSizeInPt());
+            run.setFontSize((int) firstChar.getFontSize());
             run.setBold(firstChar.getFont().isBold());
             run.setItalic(firstChar.getFont().isItalic());
         }
@@ -56,49 +56,33 @@ public class PdfToWordConverter {
     private static class CustomPDFTextStripper extends PDFTextStripper {
         private List<ParagraphInfo> paragraphs = new ArrayList<>();
         private StringBuilder lineBuilder = new StringBuilder();
+        private List<TextPosition> article = new ArrayList<>();
         private TextPosition lastTextPosition = null;
 
         @Override
-        protected void processTextPosition(TextPosition text) {
+        protected void writeString(String str, List<TextPosition> textPositions) throws IOException {
             // If the current text position is not on the same line as the previous text position,
             // create a new ParagraphInfo object and add it to the list of paragraphs
-            if (lastTextPosition != null && text.getYDirAdj() != lastTextPosition.getYDirAdj()) {
-                paragraphs.add(new ParagraphInfo(lineBuilder.toString(), getArticle()));
+            if (lastTextPosition != null && textPositions.get(0).getYDirAdj() != lastTextPosition.getYDirAdj()) {
+                paragraphs.add(new ParagraphInfo(lineBuilder.toString(), article));
                 lineBuilder = new StringBuilder();
+                article = new ArrayList<>();
             }
 
             // Append the current text to the line buffer
-            lineBuilder.append(text.getUnicode());
+            lineBuilder.append(str);
+
+            // Append the current text positions to the article list
+            article.addAll(textPositions);
 
             // Update the last text position
-            lastTextPosition = text;
+            lastTextPosition = textPositions.get(textPositions.size() - 1);
         }
 
         public List<ParagraphInfo> getParagraphs() {
             return paragraphs;
         }
     }
-    
-    private List<TextPosition> getArticle() {
-    List<TextPosition> article = new ArrayList<>();
-    for (int i = 0; i < getCurrentPage().getTextPositions().size(); i++) {
-        TextPosition textPosition = getCurrentPage().getTextPositions().get(i);
-        if (textPosition.getUnicode().trim().isEmpty()) {
-            continue;
-        }
-        if (article.isEmpty()) {
-            article.add(textPosition);
-            continue;
-        }
-        if (textPosition.getYDirAdj() - article.get(article.size() - 1).getYDirAdj() > 1) {
-            break;
-        }
-        article.add(textPosition);
-    }
-    return article;
-}
-
-
 
     private static class ParagraphInfo {
         private String text;
@@ -114,11 +98,4 @@ public class PdfToWordConverter {
         }
 
         public List<TextPosition> getArticle() {
-            return article;
-        }
-
-        public TextPosition getFirstChar() {
-            return article.get(0);
-        }
-    }
-}
+           
