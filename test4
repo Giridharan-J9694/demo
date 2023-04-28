@@ -1,10 +1,14 @@
-import java.io.*;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.pdfbox.pdmodel.*;
-import org.apache.pdfbox.text.*;
-import org.apache.poi.xwpf.usermodel.*;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.text.PDFTextStripper;
+import org.apache.pdfbox.text.TextPosition;
+import org.apache.poi.xwpf.usermodel.XWPFDocument;
+import org.apache.poi.xwpf.usermodel.XWPFParagraph;
+import org.apache.poi.xwpf.usermodel.XWPFRun;
 
 public class PdfToWordConverter {
     public static void main(String[] args) throws Exception {
@@ -37,7 +41,7 @@ public class PdfToWordConverter {
             // Set the font style of the paragraph based on the PDF text style
             TextPosition firstChar = paragraphInfo.getFirstChar();
             run.setFontFamily(firstChar.getFont().getName());
-            run.setFontSize((int) firstChar.getFontSize());
+            run.setFontSize((int) firstChar.getFontSizeInPt());
             run.setBold(firstChar.getFont().isBold());
             run.setItalic(firstChar.getFont().isItalic());
         }
@@ -57,29 +61,29 @@ public class PdfToWordConverter {
         private List<ParagraphInfo> paragraphs = new ArrayList<>();
         private StringBuilder lineBuilder = new StringBuilder();
         private List<TextPosition> article = new ArrayList<>();
-        private TextPosition lastTextPosition = null;
 
         @Override
-        protected void writeString(String str, List<TextPosition> textPositions) throws IOException {
+        protected void processTextPosition(TextPosition text) {
             // If the current text position is not on the same line as the previous text position,
             // create a new ParagraphInfo object and add it to the list of paragraphs
-            if (lastTextPosition != null && textPositions.get(0).getYDirAdj() != lastTextPosition.getYDirAdj()) {
+            if (article.isEmpty() || text.getYDirAdj() == article.get(0).getYDirAdj()) {
+                article.add(text);
+            } else {
                 paragraphs.add(new ParagraphInfo(lineBuilder.toString(), article));
                 lineBuilder = new StringBuilder();
                 article = new ArrayList<>();
+                article.add(text);
             }
 
             // Append the current text to the line buffer
-            lineBuilder.append(str);
-
-            // Append the current text positions to the article list
-            article.addAll(textPositions);
-
-            // Update the last text position
-            lastTextPosition = textPositions.get(textPositions.size() - 1);
+            lineBuilder.append(text.getUnicode());
         }
 
         public List<ParagraphInfo> getParagraphs() {
+            // Add the final paragraph to the list
+            if (!article.isEmpty()) {
+                paragraphs.add(new ParagraphInfo(lineBuilder.toString(), article));
+            }
             return paragraphs;
         }
     }
@@ -90,12 +94,67 @@ public class PdfToWordConverter {
 
         public ParagraphInfo(String text, List<TextPosition> article) {
             this.text = text;
-            this.article = article;
-        }
+            this.article
+import java.util.ArrayList;
+import java.util.List;
 
-        public String getText() {
-            return text;
-        }
+import org.apache.pdfbox.text.TextPosition;
 
-        public List<TextPosition> getArticle() {
-           
+public class ParagraphInfo {
+    private String text;
+    private List<TextPosition> article;
+
+    public ParagraphInfo(String text, List<TextPosition> article) {
+        this.text = text;
+        this.article = article;
+    }
+
+    public String getText() {
+        return text;
+    }
+
+    public List<TextPosition> getArticle() {
+        return article;
+    }
+
+    public TextPosition getFirstChar() {
+        return article.get(0);
+    }
+
+    public boolean isBold() {
+        for (TextPosition tp : article) {
+            if (!tp.getFont().isBold()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public boolean isItalic() {
+        for (TextPosition tp : article) {
+            if (!tp.getFont().isItalic()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public String getFontFamily() {
+        return article.get(0).getFont().getName();
+    }
+
+    public int getFontSize() {
+        return (int) article.get(0).getFontSizeInPt();
+    }
+
+    public List<TextPosition> getCharactersInRange(int start, int end) {
+        List<TextPosition> characters = new ArrayList<>();
+        for (TextPosition tp : article) {
+            int currentIndex = tp.getUnicode().codePointAt(0);
+            if (currentIndex >= start && currentIndex <= end) {
+                characters.add(tp);
+            }
+        }
+        return characters;
+    }
+}
