@@ -81,11 +81,23 @@ public class PdfToWordConverter {
     
     private List<TextPosition> getArticle() {
     List<TextPosition> article = new ArrayList<>();
-    for (int i = 0; i < getCharactersByArticle().size(); i++) {
-        article.addAll(getCharactersByArticle().get(i));
+    for (int i = 0; i < getCurrentPage().getTextPositions().size(); i++) {
+        TextPosition textPosition = getCurrentPage().getTextPositions().get(i);
+        if (textPosition.getUnicode().trim().isEmpty()) {
+            continue;
+        }
+        if (article.isEmpty()) {
+            article.add(textPosition);
+            continue;
+        }
+        if (textPosition.getYDirAdj() - article.get(article.size() - 1).getYDirAdj() > 1) {
+            break;
+        }
+        article.add(textPosition);
     }
     return article;
 }
+
 
 
     private static class ParagraphInfo {
