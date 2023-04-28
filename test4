@@ -202,3 +202,33 @@ private static class ParagraphInfo {
         return false;
     }
 }
+
+
+
+
+for (ParagraphInfo paragraphInfo : paragraphs) {
+            // Create a new paragraph in the Word document and add the paragraph text to it
+            XWPFParagraph paragraph = docx.createParagraph();
+            XWPFRun run = paragraph.createRun();
+            run.setText(paragraphInfo.getText());
+
+            // Set the font style of the paragraph based on the PDF text style
+            PDFont font = paragraphInfo.getFont();
+            PDFontDescriptor fontDescriptor = font.getFontDescriptor();
+            if (fontDescriptor != null) {
+                if (fontDescriptor.isForceBold()) {
+                    run.setBold(true);
+                } else if (font instanceof PDSimpleFont) {
+                    int flags = fontDescriptor.getFlags();
+                    if (FontDescriptorFlags.isAllCap(flags) || FontDescriptorFlags.isBold(flags)) {
+                        run.setBold(true);
+                    }
+                    if (FontDescriptorFlags.isItalic(flags) || FontDescriptorFlags.isOblique(flags)) {
+                        run.setItalic(true);
+                    }
+                }
+            }
+
+            run.setFontFamily(font.getName());
+            run.setFontSize((int) paragraphInfo.getFirstChar().getFontSizeInPt());
+        }
