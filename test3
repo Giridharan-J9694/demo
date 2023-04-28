@@ -1,0 +1,98 @@
+import java.io.*;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.apache.pdfbox.pdmodel.*;
+import org.apache.pdfbox.text.*;
+import org.apache.poi.xwpf.usermodel.*;
+
+public class PdfToWordConverter {
+    public static void main(String[] args) throws Exception {
+        // Load the PDF file into a PDDocument object
+        PDDocument document = PDDocument.load(new File("example.pdf"));
+
+        // Create a new Word document
+        XWPFDocument docx = new XWPFDocument();
+
+        // Get the list of pages in the PDF document
+        List<PDPage> pages = document.getDocumentCatalog().getPages();
+
+        // Iterate through each page and add its content to the Word document
+        for (PDPage page : pages) {
+            // Create a new paragraph in the Word document for each line of text in the PDF page
+            List<String> lines = extractLinesFromPage(page);
+            for (String line : lines) {
+                XWPFParagraph paragraph = docx.createParagraph();
+                XWPFRun run = paragraph.createRun();
+                run.setText(line);
+
+                // Set the font style of the paragraph based on the PDF text style
+                List<TextPosition> textPositions = extractTextPositionsFromLine(line, page);
+                if (textPositions.size() > 0) {
+                    TextPosition firstChar = textPositions.get(0);
+                    run.setFontFamily(firstChar.getFont().getName());
+                    run.setFontSize((int) firstChar.getFontSizeInPt());
+                    run.setBold(firstChar.getFont().isBold());
+                    run.setItalic(firstChar.getFont().isItalic());
+                }
+            }
+
+            // Add a page break to separate the content of each PDF page in the Word document
+            docx.createParagraph().createRun().addBreak(BreakType.PAGE);
+        }
+
+        // Save the Word document
+        FileOutputStream out = new FileOutputStream("example.docx");
+        docx.write(out);
+        out.close();
+
+        // Close the PDF document
+        document.close();
+
+        System.out.println("PDF converted to Word successfully.");
+    }
+
+    private static List<String> extractLinesFromPage(PDPage page) throws IOException {
+        List<String> lines = new ArrayList<>();
+
+        // Create a custom PDFTextStripper object to collect text information from the PDF page
+        PDFTextStripper stripper = new PDFTextStripper() {
+            @Override
+            protected void writeString(String text, List<TextPosition> textPositions) throws IOException {
+                lines.add(text);
+            }
+        };
+
+        // Set the start and end page numbers to extract text from only the current page
+        stripper.setStartPage(page.getPDPageNumber());
+        stripper.setEndPage(page.getPDPageNumber());
+
+        // Extract the text from the PDF page
+        stripper.getText(page.getDocument());
+
+        return lines;
+    }
+
+    private static List<TextPosition> extractTextPositionsFromLine(String line, PDPage page) throws IOException {
+        List<TextPosition> textPositions = new ArrayList<>();
+
+        // Create a custom PDFTextStripper object to collect text style information from the PDF page
+        PDFTextStripper stripper = new PDFTextStripper() {
+            @Override
+            protected void writeString(String text, List<TextPosition> positions) throws IOException {
+                if (text.equals(line)) {
+                    textPositions.addAll(positions);
+                }
+            }
+        };
+
+        // Set the start and end page numbers to extract text from only the current page
+        stripper.setStartPage(page.getPDPageNumber());
+        stripper.setEndPage(page.getPDPageNumber());
+
+        // Extract the text style information from the PDF page
+        stripper.getText(page.getDocument());
+
+        return textPositions;
+    }
+}
