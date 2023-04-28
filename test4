@@ -14,37 +14,32 @@ public class PdfToWordConverter {
         // Create a new Word document
         XWPFDocument docx = new XWPFDocument();
 
-        // Iterate through each page in the PDF document
-        List<PDPage> pages = document.getDocumentCatalog().getPages();
-        for (PDPage page : pages) {
-            // Create a custom PDFTextStripper object to collect text and style information
-            PDFTextStripper stripper = new CustomPDFTextStripper();
+        // Create a custom PDFTextStripper object to collect text and style information
+        PDFTextStripper stripper = new CustomPDFTextStripper();
 
-            // Set the start and end character positions for the page
-            stripper.setStartPage(document.getPageNumber(page));
-            stripper.setEndPage(document.getPageNumber(page));
+        // Set the start and end page numbers
+        stripper.setStartPage(1);
+        stripper.setEndPage(document.getNumberOfPages());
 
-            // Get the text content of the PDF page
-            stripper.getText(document);
+        // Get the text content of the PDF document
+        stripper.getText(document);
 
-            // Get the list of paragraphs with text and style information from the custom PDFTextStripper
-            List<ParagraphInfo> paragraphs = ((CustomPDFTextStripper) stripper).getParagraphs();
+        // Get the list of paragraphs with text and style information from the custom PDFTextStripper
+        List<ParagraphInfo> paragraphs = ((CustomPDFTextStripper) stripper).getParagraphs();
 
-            // Create a new XWPFParagraph for each paragraph in the Word document
-            for (ParagraphInfo paragraphInfo : paragraphs) {
-                XWPFParagraph paragraph = docx.createParagraph();
+        // Iterate through each paragraph and add it to the Word document
+        for (ParagraphInfo paragraphInfo : paragraphs) {
+            // Create a new paragraph in the Word document and add the paragraph text to it
+            XWPFParagraph paragraph = docx.createParagraph();
+            XWPFRun run = paragraph.createRun();
+            run.setText(paragraphInfo.getText());
 
-                // Set the font style of the paragraph based on the PDF text style
-                TextPosition firstChar = paragraphInfo.getFirstChar();
-                XWPFRun run = paragraph.createRun();
-                run.setFontFamily(firstChar.getFont().getName());
-                run.setFontSize((int) firstChar.getFontSizeInPt());
-                run.setBold(firstChar.getFont().isBold());
-                run.setItalic(firstChar.getFont().isItalic());
-
-                // Add the paragraph text to the XWPFParagraph
-                run.setText(paragraphInfo.getText());
-            }
+            // Set the font style of the paragraph based on the PDF text style
+            TextPosition firstChar = paragraphInfo.getFirstChar();
+            run.setFontFamily(firstChar.getFont().getName());
+            run.setFontSize((int) firstChar.getFontSizeInPt());
+            run.setBold(firstChar.getFont().isBold());
+            run.setItalic(firstChar.getFont().isItalic());
         }
 
         // Save the Word document
@@ -102,4 +97,7 @@ public class PdfToWordConverter {
         }
 
         public TextPosition getFirstChar() {
-            return article.get(0
+            return article.get(0);
+        }
+    }
+}
